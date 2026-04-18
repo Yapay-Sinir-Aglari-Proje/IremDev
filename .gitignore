@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+*.log
+.DS_Store
+.cursor/
+output/Untitled
+# LSTM / büyük çıktılar (isteğe bağlı yorumu kaldırın)
+# models/*.h5
