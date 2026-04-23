@@ -9,13 +9,18 @@ PPO ile SmartParkingEnv üzerinde politika eğitimi.
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.logger import configure
+from stable_baselines3.common.monitor import Monitor
 
-from paths import DATA_PROCESSED, MODELS_DIR, ensure_models
+from paths import DATA_PROCESSED, LOGS_DIR, MODELS_DIR, ensure_logs_dir, ensure_models
 from parking_rl.smart_parking_env import SmartParkingEnv
 
 
@@ -28,8 +33,32 @@ def _resolve_best_model_path() -> Path | None:
     return None
 
 
+class ActionHistogramCallback(BaseCallback):
+    """Toplanan ayrık aksiyonları logs/actions.csv olarak yazar (rl_visualizer)."""
+
+    def __init__(self, out_path: Path):
+        super().__init__(0)
+        self.out_path = out_path
+        self._counts: Counter[int] = Counter()
+
+    def _on_step(self) -> bool:
+        actions = self.locals.get("actions")
+        if actions is not None:
+            for a in np.asarray(actions).reshape(-1):
+                self._counts[int(a)] += 1
+        return True
+
+    def _on_training_end(self) -> None:
+        if not self._counts:
+            return
+        actions = sorted(self._counts.keys())
+        df = pd.DataFrame({"action": actions, "count": [self._counts[k] for k in actions]})
+        df.to_csv(self.out_path, index=False)
+
+
 def main() -> None:
     ensure_models()
+    ensure_logs_dir()
 
     train_path = DATA_PROCESSED / "train.csv"
     val_path = DATA_PROCESSED / "val.csv"
@@ -39,7 +68,8 @@ def main() -> None:
             raise FileNotFoundError(f"İşlenmiş veri eksik: {p}. Önce data_preparation çalıştırın.")
 
     print("[PPO] Ortamlar yükleniyor (train / val / test)...")
-    train_env = SmartParkingEnv(data_path=train_path)
+    # Episode ödül/uzunluk: logs/train.monitor.csv (rl_visualizer ile uyumlu)
+    train_env = Monitor(SmartParkingEnv(data_path=train_path), str(LOGS_DIR / "train"))
     val_env = SmartParkingEnv(data_path=val_path)
     test_env = SmartParkingEnv(data_path=test_path)
 
@@ -54,6 +84,7 @@ def main() -> None:
         render=False,
         verbose=1,
     )
+    action_log = ActionHistogramCallback(LOGS_DIR / "actions.csv")
 
     print("[PPO] Öğrenme başlıyor (100k timestep)...")
     model = PPO(
@@ -64,7 +95,9 @@ def main() -> None:
         n_steps=2048,
         ent_coef=0.01,
     )
-    model.learn(total_timesteps=100_000, callback=eval_callback)
+    # Kayıp eğrileri: logs/progress.csv (train/policy_gradient_loss, train/value_loss)
+    model.set_logger(configure(str(LOGS_DIR), ["stdout", "csv"]))
+    model.learn(total_timesteps=100_000, callback=[eval_callback, action_log])
 
     final_path = MODELS_DIR / "ppo_parking_model_final.zip"
     # Stable-Baselines3 kayıtta dosya adına otomatik .zip ekler

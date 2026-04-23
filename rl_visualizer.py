@@ -1,11 +1,13 @@
 """
 RL eğitim metriklerinin akademik kalitede görselleştirilmesi.
 
-CSV ve NumPy çıktılarından grafik üretir; eksik dosyalarda uyarı vererek devam eder.
+CSV ve NumPy çıktılarından grafik üretir; zorunlu dosya eksiklerinde uyarı verir.
 """
 
 from __future__ import annotations
 
+import io
+import logging
 import warnings
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
@@ -18,6 +20,8 @@ import numpy as np
 import pandas as pd
 
 from paths import PROJECT_ROOT
+
+_LOGGER = logging.getLogger(__name__)
 
 # Varsayılan arama dizinleri (log / çıktı / kök)
 _DEFAULT_SEARCH_DIRS: Tuple[Path, ...] = (
@@ -45,6 +49,32 @@ def _find_file(candidates: Sequence[str], search_dirs: Iterable[Path]) -> Option
             if p.is_file():
                 return p
     return None
+
+
+def _find_monitor_csv(search_dirs: Iterable[Path]) -> Optional[Path]:
+    """SB3 Monitor çıktısı (*monitor.csv) dosyalarından ilki."""
+    for base in search_dirs:
+        if not base.is_dir():
+            continue
+        found = sorted(base.glob("*monitor.csv"))
+        if found:
+            return found[0]
+    return None
+
+
+def _read_monitor_episodes(path: Path) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    train.monitor.csv: # ile başlayan meta satırı atlanır; sütunlar r, l, t.
+
+    Returns:
+        episode_index, rewards, lengths
+    """
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    df = pd.read_csv(io.StringIO(raw), comment="#")
+    if "r" not in df.columns or "l" not in df.columns:
+        raise KeyError("Monitor CSV r/l sütunları bekleniyor")
+    n = len(df)
+    return np.arange(n, dtype=float), df["r"].to_numpy(dtype=float), df["l"].to_numpy(dtype=float)
 
 
 def _read_csv_flexible(path: Path) -> pd.DataFrame:
@@ -102,28 +132,37 @@ def plot_reward_trend(
     """
     dirs = tuple(search_dirs) if search_dirs is not None else _DEFAULT_SEARCH_DIRS
     csv_path = _find_file(("rewards.csv", "Rewards.csv"), dirs)
+    monitor_path = _find_monitor_csv(dirs) if csv_path is None else None
     plot_dir = _ensure_plots_dir()
     target = out_path or (plot_dir / "reward_trend.png")
 
-    if csv_path is None:
+    if csv_path is None and monitor_path is None:
         warnings.warn(
-            "rewards.csv bulunamadı; ödül eğilimi grafiği atlandı.",
+            "rewards.csv ve *monitor.csv bulunamadı; ödül eğilimi grafiği atlandı.",
             UserWarning,
             stacklevel=2,
         )
         return False
 
-    df = _read_csv_flexible(csv_path)
-    try:
-        ep_col, r_col = _pick_xy_columns(df, ("episode", "ep"), ("reward", "return", "score"))
-    except KeyError as exc:
-        warnings.warn(f"rewards.csv sütun hatası ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
-        return False
-
-    episodes = df[ep_col].to_numpy(dtype=float)
-    rewards = df[r_col].to_numpy(dtype=float)
+    if csv_path is not None:
+        df = _read_csv_flexible(csv_path)
+        try:
+            ep_col, r_col = _pick_xy_columns(df, ("episode", "ep"), ("reward", "return", "score"))
+        except KeyError as exc:
+            warnings.warn(f"rewards.csv sütun hatası ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
+            return False
+        episodes = df[ep_col].to_numpy(dtype=float)
+        rewards = df[r_col].to_numpy(dtype=float)
+    else:
+        assert monitor_path is not None
+        try:
+            episodes, rewards, _ = _read_monitor_episodes(monitor_path)
+        except (KeyError, OSError, UnicodeDecodeError, pd.errors.ParserError) as exc:
+            warnings.warn(f"Monitor CSV okunamadı ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
+            return False
     ma = _moving_average(rewards, window)
-    ma_episodes = episodes[window - 1 :]
+    win_eff = 1 if window <= 1 else min(window, len(rewards))
+    ma_episodes = episodes[win_eff - 1 : win_eff - 1 + len(ma)]
 
     fig, ax = plt.subplots(figsize=_FIGSIZE, dpi=_DPI)
     ax.plot(episodes, rewards, color="#4c72b0", alpha=0.35, linewidth=1.0, label="Episode reward")
@@ -152,30 +191,41 @@ def plot_episode_length_trend(
     """Episode uzunluklarının zamana göre dağılımını çizer."""
     dirs = tuple(search_dirs) if search_dirs is not None else _DEFAULT_SEARCH_DIRS
     csv_path = _find_file(("lengths.csv", "Lengths.csv"), dirs)
+    monitor_path = _find_monitor_csv(dirs) if csv_path is None else None
     plot_dir = _ensure_plots_dir()
     target = out_path or (plot_dir / "episode_length.png")
 
-    if csv_path is None:
+    if csv_path is None and monitor_path is None:
         warnings.warn(
-            "lengths.csv bulunamadı; episode length grafiği atlandı.",
+            "lengths.csv ve *monitor.csv bulunamadı; episode length grafiği atlandı.",
             UserWarning,
             stacklevel=2,
         )
         return False
 
-    df = _read_csv_flexible(csv_path)
-    try:
-        ep_col, len_col = _pick_xy_columns(
-            df, ("episode", "ep"), ("length", "steps", "episode_length")
-        )
-    except KeyError as exc:
-        warnings.warn(f"lengths.csv sütun hatası ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
-        return False
+    if csv_path is not None:
+        df = _read_csv_flexible(csv_path)
+        try:
+            ep_col, len_col = _pick_xy_columns(
+                df, ("episode", "ep"), ("length", "steps", "episode_length")
+            )
+        except KeyError as exc:
+            warnings.warn(f"lengths.csv sütun hatası ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
+            return False
+        ep_vals = df[ep_col].to_numpy()
+        len_vals = df[len_col].to_numpy()
+    else:
+        assert monitor_path is not None
+        try:
+            ep_vals, _, len_vals = _read_monitor_episodes(monitor_path)
+        except (KeyError, OSError, UnicodeDecodeError, pd.errors.ParserError) as exc:
+            warnings.warn(f"Monitor CSV okunamadı ({exc}); grafik atlandı.", UserWarning, stacklevel=2)
+            return False
 
     fig, ax = plt.subplots(figsize=_FIGSIZE, dpi=_DPI)
     ax.plot(
-        df[ep_col].to_numpy(),
-        df[len_col].to_numpy(),
+        ep_vals,
+        len_vals,
         color="#55a868",
         linewidth=1.4,
         marker="o",
@@ -208,6 +258,7 @@ def plot_loss_curve(
     p_policy = _find_file(("policy_loss.csv",), dirs)
     p_value = _find_file(("value_loss.csv",), dirs)
     p_loss = _find_file(("loss.csv", "Loss.csv"), dirs)
+    p_progress = _find_file(("progress.csv",), dirs)
 
     fig, ax = plt.subplots(figsize=_FIGSIZE, dpi=_DPI)
     plotted = False
@@ -243,9 +294,38 @@ def plot_loss_curve(
         ax.plot(df[x_c], df[y_c], color="#64b5cd", linewidth=1.6, label="Training loss")
         ax.set_title("Optimization Loss Curve (Value-Based RL)")
         plotted = True
+    elif p_progress is not None:
+        df = _read_csv_flexible(p_progress)
+        lower = {c.lower(): c for c in df.columns}
+
+        def _col_exact(canonical: str) -> Optional[str]:
+            return lower.get(canonical.lower())
+
+        x_col = _col_exact("time/iterations") or _col_exact("time/total_timesteps")
+        pg_col = _col_exact("train/policy_gradient_loss")
+        vl_col = _col_exact("train/value_loss")
+        if x_col and pg_col and vl_col:
+            ax.plot(df[x_col], df[pg_col], color="#8172b3", linewidth=1.6, label="Policy loss")
+            ax.plot(df[x_col], df[vl_col], color="#ccb974", linewidth=1.6, label="Value loss")
+            ax.set_title("Optimization Loss Curves (Proximal Policy Optimization)")
+            plotted = True
+        else:
+            loss_col = _col_exact("train/loss")
+            if x_col and loss_col:
+                ax.plot(df[x_col], df[loss_col], color="#64b5cd", linewidth=1.6, label="Training loss")
+                ax.set_title("Optimization Loss Curve (PPO, combined)")
+                plotted = True
+        if not plotted:
+            warnings.warn(
+                "progress.csv var fakat beklenen sütunlar yok; loss grafiği atlandı.",
+                UserWarning,
+                stacklevel=2,
+            )
+            plt.close(fig)
+            return False
     else:
         warnings.warn(
-            "policy_loss/value_loss veya loss.csv bulunamadı; loss grafiği atlandı.",
+            "policy_loss/value_loss, loss.csv veya progress.csv bulunamadı; loss grafiği atlandı.",
             UserWarning,
             stacklevel=2,
         )
@@ -273,31 +353,37 @@ def plot_action_distribution(
     target = out_path or (plot_dir / "action_distribution.png")
 
     if csv_path is None:
-        warnings.warn(
-            "actions.csv bulunamadı; aksiyon dağılımı grafiği atlandı.",
-            UserWarning,
-            stacklevel=2,
-        )
+        _LOGGER.debug("actions.csv yok; aksiyon dağılımı atlandı (PPO sonrası rl_model ile üretilir).")
         return False
 
     df = _read_csv_flexible(csv_path)
-    try:
-        _, a_col = _pick_xy_columns(df, ("episode", "step", "timestep"), ("action", "a", "act"))
-    except KeyError:
-        if "action" in df.columns:
-            a_col = "action"
-        elif len(df.columns) >= 2:
-            a_col = df.columns[-1]
-        else:
-            warnings.warn("actions.csv uygun aksiyon sütunu içermiyor.", UserWarning, stacklevel=2)
-            return False
+    lower = {c.lower(): c for c in df.columns}
+    if "action" in lower and "count" in lower:
+        ac, cc = lower["action"], lower["count"]
+        unique = np.rint(df[ac].to_numpy(dtype=float)).astype(int)
+        counts = df[cc].to_numpy(dtype=float)
+        order = np.argsort(unique)
+        unique = unique[order]
+        counts = counts[order]
+    else:
+        try:
+            _, a_col = _pick_xy_columns(df, ("episode", "step", "timestep"), ("action", "a", "act"))
+        except KeyError:
+            if "action" in df.columns:
+                a_col = "action"
+            elif len(df.columns) >= 2:
+                a_col = df.columns[-1]
+            else:
+                warnings.warn("actions.csv uygun aksiyon sütunu içermiyor.", UserWarning, stacklevel=2)
+                return False
 
-    actions = df[a_col].to_numpy()
-    actions_int = np.rint(actions).astype(int)
-    unique, counts = np.unique(actions_int, return_counts=True)
+        actions = df[a_col].to_numpy()
+        actions_int = np.rint(actions).astype(int)
+        unique, counts = np.unique(actions_int, return_counts=True)
+        counts = counts.astype(float)
 
     fig, ax = plt.subplots(figsize=_FIGSIZE, dpi=_DPI)
-    ax.bar(unique.astype(float), counts.astype(float), color="#dd8452", edgecolor="0.2", linewidth=0.4)
+    ax.bar(unique.astype(float), counts, color="#dd8452", edgecolor="0.2", linewidth=0.4)
     ax.set_title("Empirical Action Distribution")
     ax.set_xlabel("Discrete action index")
     ax.set_ylabel("Frequency (count)")
@@ -319,11 +405,7 @@ def plot_value_heatmap(
     target = out_path or (plot_dir / "value_heatmap.png")
 
     if npy_path is None:
-        warnings.warn(
-            "value_map.npy bulunamadı; durum-değer ısı haritası atlandı.",
-            UserWarning,
-            stacklevel=2,
-        )
+        _LOGGER.debug("value_map.npy yok; ısı haritası atlandı (tabanlı RL çıktısı, PPO ile üretilmez).")
         return False
 
     arr = np.load(npy_path)
@@ -373,4 +455,10 @@ def visualize_all(
 
 
 if __name__ == "__main__":
-    visualize_all()
+    produced = visualize_all()
+    if produced:
+        print(f"PNG çıktıları ({len(produced)} adet), proje altında plots/:")
+        for p in produced:
+            print(f"  {p}")
+    else:
+        print("Grafik üretilmedi; logs/ altında train.monitor.csv, progress.csv vb. gerekir.")

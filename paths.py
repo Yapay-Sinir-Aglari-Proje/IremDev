@@ -16,6 +16,13 @@ DATA_RAW: Path = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED: Path = PROJECT_ROOT / "data" / "processed"
 MODELS_DIR: Path = PROJECT_ROOT / "models"
 OUTPUT_DIR: Path = PROJECT_ROOT / "output"
+# RL eğitim çıktıları (Monitor + SB3 progress.csv); rl_visualizer burayı da arar.
+LOGS_DIR: Path = PROJECT_ROOT / "logs"
+
+
+def ensure_logs_dir() -> None:
+    """RL ve diğer script logları için klasör."""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def ensure_data_processed() -> None:
@@ -38,3 +45,4 @@ def ensure_all_standard_dirs() -> None:
     ensure_data_processed()
     ensure_models()
     ensure_output()
+    ensure_logs_dir()
