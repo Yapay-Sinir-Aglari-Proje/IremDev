@@ -1,17 +1,32 @@
-# Akıllı Park (YSA entegrasyonu)
+# Trakya Üniversitesi - Bilgisayar MühendisliğiYapay Sinir Ağları Projesi
+# Akıllı Park
 
-Akıllı otopark: LSTM doluluk tahmini, RL simülasyon ortamı (Gymnasium), veri işleme ve RL durum vektörleri (`models/prepare_prediction_states.py`).
 
-Kaynak: [beyzayilmaz1/YSA](https://github.com/beyzayilmaz1/YSA) ile hizalıdır.
+Akıllı otopark sistemleri için geliştirilmiş; Veri İşleme, Keşifsel Veri Analizi (EDA), LSTM tabanlı doluluk tahmini ve Gymnasium tabanlı Pekiştirmeli Öğrenme (RL) simülasyon ortamını içeren kapsamlı bir yapay zeka projesi.
 
-## Çalıştırma
+## Proje Ekibi
+* Ulaş Ekrem Emili
+* İrem Su Erdemir
+* Hatice Pınar Yılmaz
+* Beyza Yılmaz
+* Yusuf Güde
 
-1. Bağımlılıklar: `pip install -r requirements.txt`
-2. Veri: `python data_preparation.py` → `data/processed/`
-3. LSTM: `python lstm_model.py` (çıktı: `models/lstm_parking_model.h5`, `output/*.png`)
-4. RL ortamı: `python -m parking_rl.smart_parking_env`
-5. (İsteğe bağlı) RL state CSV: `python models/prepare_prediction_states.py` — `data/processed/lstm_predictions.csv` yoksa modelden tahmin üretir, `rl_prediction_states.csv` yazar.
+---
 
-## Bağımlılıklar
+## Çalıştırma Adımları
 
-`pandas`, `numpy`, `matplotlib`, `scikit-learn`, `tensorflow`, `gymnasium` (sürümler için `requirements.txt`).
+Sistemi uçtan uca test etmek ve çalıştırmak için aşağıdaki adımları sırasıyla izleyin:
+
+1. **Bağımlılıkların Kurulması:** `pip3 install -r requirements.txt`
+2. **Veri Hazırlama:** `python3 data_preparation.py` *(Çıktılar `data/processed/` klasörüne gider)*
+3. **Keşifsel Analiz (EDA):** `python3 eda.py` *(Grafikler `output/` klasörüne kaydedilir)*
+4. **LSTM Modeli Eğitimi:** `python3 lstm_model.py` *(Model `models/lstm_parking_model.h5` olarak kaydedilir)*
+5. **RL State (Durum) Hazırlığı:** `python3 prepare_prediction_states.py` *(Tahminleri ve RL matrislerini hazırlar)*
+6. **Simülasyon Ortamı Testi:** `python3 -m parking_rl.smart_parking_env`
+
+*(Not: 7. adım olan RL Ajanının eğitimi eklenecektir.)*
+
+---
+
+# Bağımlılıklar
+pandas, numpy, matplotlib, scikit-learn, tensorflow, gymnasium, stable-baselines3
