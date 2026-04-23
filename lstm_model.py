@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping 
@@ -102,11 +104,15 @@ print("\n[INFO] Model 'models/lstm_parking_model.h5' olarak kaydedildi.")
 # eger train loss ve val loss birlikte asagi iniyorsa model iyi egitiliyor demektir. 
 # Eger val loss artarken train loss azaliyor ise overfitting olabilir.
 
+_output_dir = Path("output")
+_output_dir.mkdir(exist_ok=True)
+
 plt.figure(figsize=(8,4))
 plt.plot(history.history['loss'], label='Train Loss')
 plt.plot(history.history['val_loss'], label='Validation Loss')
 plt.title("Eğitim ve Doğrulama Kaybı (Loss)")
 plt.legend()
+plt.savefig(_output_dir / "loss_curve.png", dpi=150, bbox_inches="tight")
 plt.show()
 
 
@@ -120,7 +126,7 @@ test_pred = model.predict(X_test)
 test_pred_rescaled = scaler.inverse_transform(test_pred)
 y_test_real = scaler.inverse_transform(y_test)
 
-rmse = mean_squared_error(y_test_real, test_pred_rescaled, squared=False)
+rmse = root_mean_squared_error(y_test_real, test_pred_rescaled)
 mae = mean_absolute_error(y_test_real, test_pred_rescaled)
 
 print("\n===== MODEL PERFORMANSI =====")
@@ -137,6 +143,7 @@ plt.legend()
 plt.title("Otopark Doluluk Oranı Tahmini (Test Seti - Kesit)")
 plt.xlabel("Zaman Adımı")
 plt.ylabel("Doluluk Oranı")
+plt.savefig(_output_dir / "tahmin_karsilastirma.png", dpi=150, bbox_inches="tight")
 plt.show()
 
 
