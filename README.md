@@ -24,6 +24,7 @@ Sistemi uçtan uca test etmek ve çalıştırmak için aşağıdaki adımları s
 5. **RL State (Durum) Hazırlığı:** `python3 prepare_prediction_states.py` *(Tahminleri ve RL matrislerini hazırlar)*
 6. **Simülasyon Ortamı Testi:** `python3 -m parking_rl.smart_parking_env`
 7. **RL Ajanının Eğitilmesi (PPO):** `python3 rl_model.py` *(En iyi model `models/best_model.zip` olarak kaydedilir)*
+8. **Performans Analizi:** `python3 evaluate_performance.py` *(Modelin başarı oranı, park bulma süresi ve maliyet metriklerini raporlar)*
 
 
 ---
