@@ -1,4 +1,4 @@
-# Trakya Üniversitesi - Bilgisayar MühendisliğiYapay Sinir Ağları Projesi
+# Trakya Üniversitesi - Bilgisayar Mühendisliği Yapay Sinir Ağları Projesi
 # Akıllı Park
 
 
