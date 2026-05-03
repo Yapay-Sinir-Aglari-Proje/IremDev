@@ -1,0 +1,2 @@
+Animasyon üretilemedi.
+Sebep: ValueError('Error: Unexpected observation shape (61,) for Box environment, please use (108,) or (n_env, 108) for the observation shape.')
