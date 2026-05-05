@@ -3,5 +3,8 @@ LSTM Model Performansi
 Model tipi: Tek degiskenli zaman serisi LSTM
 Kullanilan feature: occupancy_rate
 Time step: 12
-RMSE: 0.139315
-MAE: 0.096574
+Epochs: 80
+Batch size: 32
+Random seed: 42
+RMSE: 0.151579
+MAE: 0.117039

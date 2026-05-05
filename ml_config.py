@@ -1,8 +1,11 @@
 """
-LSTM ve RL feature pipeline arasında paylaşılan sabitler.
-
-TIME_STEP değişirse hem lstm_model hem prepare_prediction_states güncellenmeli;
-tek kaynak burası olsun.
+LSTM ve RL feature pipeline için merkezi konfigürasyon dosyası.
 """
 
+# ===== LSTM =====
 LSTM_TIME_STEP: int = 12
+LSTM_EPOCHS: int = 80
+LSTM_BATCH_SIZE: int = 32
+
+# ===== RANDOM SEED =====
+RANDOM_SEED: int = 42

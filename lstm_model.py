@@ -7,9 +7,12 @@ LSTM ile otopark doluluk oranı tahmini (zaman serisi).
 - Model tek feature ile çalışır: occupancy_rate.
 - MinMaxScaler yalnızca train üzerinde fit edilir; val/test sadece transform.
 - Val/test dizileri için bir önceki parçanın son time_step gözlemi eklenir.
+- Model parametreleri ml_config.py dosyasından alınır.
 """
 
 from __future__ import annotations
+
+import random
 
 import joblib
 import matplotlib
@@ -18,6 +21,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
@@ -26,8 +30,18 @@ from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Input, LSTM, Dense, Dropout
 from tensorflow.keras.models import Sequential
 
-from ml_config import LSTM_TIME_STEP
+from ml_config import (
+    LSTM_TIME_STEP,
+    LSTM_EPOCHS,
+    LSTM_BATCH_SIZE,
+    RANDOM_SEED,
+)
 from paths import DATA_PROCESSED, MODELS_DIR, OUTPUT_DIR, ensure_models, ensure_output
+
+
+np.random.seed(RANDOM_SEED)
+tf.random.set_seed(RANDOM_SEED)
+random.seed(RANDOM_SEED)
 
 
 def aggregate_mean_occupancy_rate(df: pd.DataFrame) -> pd.DataFrame:
@@ -144,7 +158,8 @@ def main() -> None:
     X_test, y_test = create_sequences(test_block, time_step)
 
     print(
-        f"[LSTM] Şekiller — X_train {X_train.shape}, X_val {X_val.shape}, X_test {X_test.shape}"
+        f"[LSTM] Şekiller — X_train {X_train.shape}, "
+        f"X_val {X_val.shape}, X_test {X_test.shape}"
     )
 
     model = Sequential(
@@ -174,13 +189,13 @@ def main() -> None:
         X_train,
         y_train,
         validation_data=(X_val, y_val),
-        epochs=80,
-        batch_size=32,
+        epochs=LSTM_EPOCHS,
+        batch_size=LSTM_BATCH_SIZE,
         callbacks=[early_stop],
         verbose=1,
     )
 
-    model_path = MODELS_DIR / "lstm_parking_model.h5"
+    model_path = MODELS_DIR / "lstm_parking_model.keras"
     scaler_path = MODELS_DIR / "lstm_occupancy_scaler.joblib"
 
     model.save(model_path)
@@ -224,6 +239,9 @@ def main() -> None:
         f.write("Model tipi: Tek degiskenli zaman serisi LSTM\n")
         f.write("Kullanilan feature: occupancy_rate\n")
         f.write(f"Time step: {time_step}\n")
+        f.write(f"Epochs: {LSTM_EPOCHS}\n")
+        f.write(f"Batch size: {LSTM_BATCH_SIZE}\n")
+        f.write(f"Random seed: {RANDOM_SEED}\n")
         f.write(f"RMSE: {rmse:.6f}\n")
         f.write(f"MAE: {mae:.6f}\n")
 
