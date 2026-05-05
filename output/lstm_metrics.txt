@@ -1,0 +1,7 @@
+LSTM Model Performansi
+======================
+Model tipi: Tek degiskenli zaman serisi LSTM
+Kullanilan feature: occupancy_rate
+Time step: 12
+RMSE: 0.139315
+MAE: 0.096574
