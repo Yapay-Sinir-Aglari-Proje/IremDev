@@ -1,3 +1,9 @@
+"""
+Tek tip rastgelelik: Python, NumPy, (varsa) PyTorch ve PYTHONHASHSEED.
+
+Aynı seed ile `train_lstm`, `train_rl` ve değerlendirme scriptleri tekrarlanabilir olur.
+"""
+
 from __future__ import annotations
 
 import os
@@ -9,6 +15,7 @@ from ml_config import RANDOM_SEED
 
 
 def set_global_seed(seed: int = RANDOM_SEED) -> None:
+    """Tüm ilgili kütüphanelerde rastgele tohumu ayarlar (CUDA varsa GPU tohumu dahil)."""
     random.seed(seed)
     np.random.seed(seed)
     os.environ.setdefault("PYTHONHASHSEED", str(seed))

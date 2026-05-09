@@ -1,5 +1,10 @@
 """
-FastAPI: /predict (LSTM), /act (PPO grid: tek bölüm oynatır), /simulate (grid adımı).
+FastAPI servisi — eğitilmiş modelleri HTTP üzerinden sunar.
+
+- GET /health: servis ve seed bilgisi
+- POST /predict: son test bağlamıyla bir sonraki aggregate doluluk oranı (LSTM)
+- POST /act: PPO politikasının tek bölümdeki eylem dizisi ve toplam ödülü
+- POST /simulate/reset ve POST /simulate: grid ortamında elle adım adım deneme
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ _episode_cfgs = None
 
 
 def _episode_configs():
+    """İlk çağrıda test split’inden bölüm listesi üretilir; sonraki isteklerde önbellek kullanılır."""
     global _episode_cfgs
     if _episode_cfgs is None:
         _episode_cfgs = build_grid_nav_episode_configs(
@@ -55,6 +61,7 @@ def _episode_configs():
 
 
 def _get_lstm():
+    """LSTM modelini ve checkpoint sözlüğünü tek sefer yükler (sunucu ömrü boyunca)."""
     global _lstm_bundle
     if _lstm_bundle is None:
         ckpt = torch.load(MODELS_DIR / "lstm_model.pt", map_location="cpu")

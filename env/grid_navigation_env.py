@@ -44,6 +44,7 @@ from ml_config import (
 from utils.coordinates import stable_parking_coordinates
 
 
+# Eylem kodları: yukarı / aşağı / sol / sağ (satır, sütun) delta sırası DR_DC ile eşleşir
 ACTION_UP = 0
 ACTION_DOWN = 1
 ACTION_LEFT = 2
@@ -66,6 +67,7 @@ def _place_lots_on_grid(
     height: int,
     width: int,
 ) -> Dict[str, Tuple[int, int]]:
+    """Gerçek GPS yoksa hash tabanlı stabil (lat,lon) → ızgara hücresi eşlemesi; çakışmalarda kaydırma."""
     coords = stable_parking_coordinates(lot_ids)
     used: Set[Tuple[int, int]] = set()
     out: Dict[str, Tuple[int, int]] = {}
@@ -96,6 +98,7 @@ def build_grid_nav_episode_configs(
     width: int = GRID_WIDTH,
     base_seed: int = 42,
 ) -> List[GridNavEpisodeConfig]:
+    """Parquet zaman dilimlerinden duvarlı ızgara, park hücreleri, hedef ve başlangıç konumu üretir."""
     path = Path(processed_parquet)
     df_full = pd.read_parquet(path)
     lot_ids = sorted(df_full["SystemCodeNumber"].astype(str).unique())

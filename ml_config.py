@@ -14,18 +14,19 @@ RANDOM_SEED: int = 42
 RL_TOTAL_TIMESTEPS: int = 120_000
 RL_N_ENVS: int = 1
 RL_REWARD_NORM: bool = True
-# LSTM→RL coupling: eğitimde çoğunlukla gürültülü pred gözlemi (temsil drift’e karşı)
+# LSTM→RL bağlantısı: eğitimde çoğunlukla gürültülü tahmin gözlemi (dağılım kaymasına karşı dayanıklılık)
 RL_PRED_NOISE_STD: float = 0.08
+# Bu olasılıkla temiz (gürültüsüz) tahmin kullanılır; kalan kısımda gürültü eklenir
 RL_PRED_CLEAN_PROB: float = 0.3
 RL_REWARD_CLIP: float = 10.0
-# Grid navigasyon: büyük hedef/timeout ödülleri için clip üst sınırı
+# Izgara navigasyon: hedef/timeout gibi büyük ödüller için ödül kırpma üst sınırı
 GRID_REWARD_CLIP: float = 550.0
 
 # ===== GRID NAVIGATION RL =====
 GRID_HEIGHT: int = 15
 GRID_WIDTH: int = 15
 GRID_MAX_EPISODE_STEPS: int = 200
-# Ödül mühendisliği (zigzag / loop azaltma)
+# Ödül tasarımı: zigzag ve A↔B salınımını azaltmak için pencere ve cezalar
 GRID_LOOP_WINDOW: int = 10
 GRID_LOOP_PENALTY: float = -4.0
 GRID_REVISIT_PENALTY: float = -2.5
@@ -68,6 +69,6 @@ def _normalize_env_name(raw_env_name: str) -> str:
     )
 
 
-# rl_model.py ve rl_animation.py bunları import ettiği için geriye uyumlu adları koruyoruz.
+# Eski scriptler bu sabitleri import edebilir; normalize edilmiş ortam adı burada tutulur
 ENV_TYPE: str = _normalize_env_name(SELECTED_ENV)
 USE_CONTINUOUS: bool = _ENV_IS_CONTINUOUS[ENV_TYPE]

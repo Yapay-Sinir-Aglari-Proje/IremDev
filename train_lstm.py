@@ -95,6 +95,7 @@ def train_main() -> None:
     best_state: dict | None = None
 
     for epoch in range(args.epochs):
+        # Eğitim: L1 kaybı; doğrulama: erken durdurma için val MAE
         model.train()
         for xb, yb in train_loader:
             xb = xb.to(device)
@@ -155,7 +156,7 @@ def train_main() -> None:
         raise RuntimeError(
             f"Tahmin sayısı ({n_out}) aggregate test satırından ({len(agg_test)}) fazla."
         )
-    # y_test[i] ↔ test_part i. satırı (bağlam test_block'un başında); zaman damgası i.
+    # y_test[i] = i. test penceresinin hedefi; eşleşen zaman damgası aggregate test sırasından alınır
     test_times = agg_test["LastUpdated"].iloc[:n_out]
 
     pred_df = pd.DataFrame(

@@ -1,6 +1,7 @@
 """
 LSTM ile otopark doluluk oranı tahmini (zaman serisi).
 
+Not: Bu dosya Keras/TensorFlow tabanlı ayrı bir eğitim yoludur; güncel PyTorch hattı `train_lstm.py`.
 Önemli tasarım kararları:
 - Ham veri çoklu otopark satırı içerir; tek bir LSTM için her zaman diliminde
   tüm otoparkların doluluk oranı ortalaması alınır.

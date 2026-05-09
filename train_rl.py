@@ -35,10 +35,12 @@ def _make_vec_env(
     log_dir: Path,
     norm_reward: bool,
 ) -> VecNormalize:
+    """Paralel ortam yoksa bile SB3 için vektörleştirilmiş tek ortam + gözlem/ödül normalizasyonu."""
     log_dir.mkdir(parents=True, exist_ok=True)
 
     def make_fn(rank: int):
         def _init():
+            # Her kopya farklı tohumla üretilir; Monitor episode istatistiklerini CSV'ye yazar
             env = GridParkingNavigationEnv(
                 episode_configs,
                 seed=RANDOM_SEED + rank * 17,
@@ -60,11 +62,13 @@ def _make_vec_env(
 
 
 def train_algo(algo: str, timesteps: int, n_envs: int) -> Path:
+    """Veri ve (varsa) LSTM tahminlerinden bölüm konfigürasyonları üretir, SB3 ile eğitir, modeli kaydeder."""
     ensure_all_standard_dirs()
     pq = DATA_PROCESSED / "processed.parquet"
     if not pq.exists():
         build_processed_dataset()
     pred_path = PREDICTIONS_DIR / "test_predictions.csv"
+    # Her zaman dilimi + lot düzeni bir RL bölümü; tahmin CSV opsiyonel (hedef lot seçiminde kullanılabilir)
     episode_configs = build_grid_nav_episode_configs(
         pq,
         pred_path if pred_path.exists() else None,
@@ -109,6 +113,7 @@ def train_algo(algo: str, timesteps: int, n_envs: int) -> Path:
         raise ValueError(f"Bilinmeyen algoritma: {algo}")
 
     model.learn(total_timesteps=timesteps, progress_bar=True)
+    # Kayıt anında istatistikleri dondur; aksi halde değerlendirme sırasında dağılım kayar
     vec.training = False
     vec.norm_reward = False
     base = MODELS_DIR / f"{algo_l}_agent"

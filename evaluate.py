@@ -1,5 +1,10 @@
 """
-Birleşik değerlendirme: LSTM + RL (SB3) + grid baseline politikaları.
+Birleşik değerlendirme: LSTM + RL (Stable-Baselines3) + ızgara baseline politikaları.
+
+--part lstm: test_predictions.csv üzerinden MAE/RMSE
+--part rl: PPO veya DQN + VecNormalize ile başarı oranı ve ortalama bölüm getirisi
+--part baselines: rastgele, greedy Manhattan, BFS oracle ile karşılaştırma
+--part all: hepsi; sonuç evaluation/reports/metrics.json dosyasına yazılır
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ from evaluation.baselines import (
 
 
 def _vecnormalize_file(algo: str) -> Path:
+    """SB3 bazen .pkl uzantısız kaydeder; her iki dosya adını da dene."""
     pkl = MODELS_DIR / f"vecnormalize_{algo}.pkl"
     raw = MODELS_DIR / f"vecnormalize_{algo}"
     if pkl.exists():
@@ -52,6 +58,7 @@ def eval_lstm() -> dict:
 
 
 def _freeze_vec_normalize(vec: VecNormalize) -> None:
+    """Çıkarım modunda gözlem normalizasyonu sabit kalsın; ödül yeniden ölçeklenmesin."""
     vec.training = False
     vec.norm_reward = False
 
@@ -92,6 +99,7 @@ def eval_sb3_algo(algo: str, episode_configs: list, n_episodes: int) -> dict:
 
     for ep in range(n_episodes):
         seed = RANDOM_SEED + ep
+        # Aynı bölümde BFS ile mümkün olan üst sınır ödül; regret = r_star - elde edilen
         r_star = oracle_episode_return(episode_configs, seed)
         vec.seed(int(seed))
         obs = vec.reset()
@@ -166,6 +174,7 @@ def main() -> None:
     ensure_all_standard_dirs()
     out: dict = {}
 
+    # İstenen parçalara göre metrikleri topla; sonunda JSON raporu yaz
     if args.part in ("lstm", "all"):
         out["lstm"] = eval_lstm()
         print("[eval] LSTM:", out["lstm"])

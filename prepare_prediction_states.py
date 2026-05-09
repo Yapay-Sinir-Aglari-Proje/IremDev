@@ -49,6 +49,7 @@ def load_or_create_predictions(
 
 
 def create_rl_features(predictions: pd.DataFrame) -> pd.DataFrame:
+    """Lot başına RL’de kullanılacak türetilmiş skorlar (aynı zaman dilimindeki lotlar arası göreli yoğunluk)."""
     df = predictions.copy()
     if (df["capacity"] <= 0).any():
         raise ValueError("capacity > 0 olmalı.")
@@ -59,6 +60,7 @@ def create_rl_features(predictions: pd.DataFrame) -> pd.DataFrame:
     df["predicted_empty_slots"] = df["capacity"] - df["predicted_occupancy"]
     df["occupancy_ratio"] = (df["predicted_occupancy"] / df["capacity"]).clip(0.0, 1.0)
 
+    # Aynı timestamp’teki tüm lotlar için boş yer sayısını [0,1] aralığına min-max ile normalize et
     grouped = df.groupby("timestamp")["predicted_empty_slots"]
     min_vals = grouped.transform("min")
     max_vals = grouped.transform("max")
@@ -73,15 +75,17 @@ def create_rl_features(predictions: pd.DataFrame) -> pd.DataFrame:
     ]
     df["risk_level"] = np.select(conditions, ["LOW", "MEDIUM", "HIGH"], default="HIGH")
 
+    # Günün saatini süreklilik için sin/cos kodlama (periyodik özellik)
     hour = df["timestamp"].dt.hour.astype(float)
     df["time_sin"] = np.sin(2 * np.pi * hour / 24.0)
     df["time_cos"] = np.cos(2 * np.pi * hour / 24.0)
-    df["distance_placeholder"] = 0.0
-    df["expected_wait_time"] = df["occupancy_ratio"] * 10.0
+    df["distance_placeholder"] = 0.0  # İleride rota mesafesi ile doldurulabilir
+    df["expected_wait_time"] = df["occupancy_ratio"] * 10.0  # Basit vekil bekleme süresi
     return df
 
 
 def build_state_vector(df: pd.DataFrame) -> pd.DataFrame:
+    """Seçilen sayısal sütunları tek bir liste sütununda (`rl_state_vector`) birleştirir."""
     vector_columns: List[str] = [
         "occupancy_ratio",
         "predicted_empty_slots",

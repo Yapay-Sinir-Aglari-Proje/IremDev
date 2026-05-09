@@ -43,10 +43,12 @@ def ensure_output() -> None:
 
 
 def ensure_predictions_dir() -> None:
+    """LSTM test tahminleri (CSV) için klasör."""
     PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def ensure_evaluation_reports() -> None:
+    """evaluate.py çıktısı metrics.json vb. raporlar için klasör."""
     EVALUATION_DIR.mkdir(parents=True, exist_ok=True)
 
 

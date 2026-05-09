@@ -1,4 +1,9 @@
-"""PyTorch LSTM ile aggregate doluluk oranı tahmini."""
+"""
+PyTorch LSTM ile toplu (aggregate) doluluk oranı tahmini.
+
+`train_lstm.py` ile kaydedilen `lstm_model.pt` ve `processed_feature_scaler.joblib`
+dosyalarını okur; test dilimindeki her zaman adımı için bir tahmin üretir.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +26,7 @@ from utils.lstm_core import (
 
 
 def load_lstm_bundle(path: Path | None = None) -> tuple[OccupancyLSTM, dict, int]:
+    """Checkpoint’ten model mimarisi ve ağırlıkları yükler; time_step meta verisini döner."""
     path = path or (MODELS_DIR / "lstm_model.pt")
     ckpt = torch.load(path, map_location="cpu")
     mm = ckpt["input_cols"]

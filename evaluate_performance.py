@@ -1,4 +1,7 @@
-"""Geriye dönük uyumluluk: `evaluate.main` ile aynı CLI."""
+"""
+Geriye dönük uyumluluk: kök dizinde `python evaluate_performance.py` çalıştırıldığında
+sys.path ayarı yapılır ve asıl giriş noktası `evaluate.main` ile aynı CLI’yi kullanır.
+"""
 
 from __future__ import annotations
 

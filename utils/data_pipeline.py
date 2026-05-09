@@ -39,6 +39,7 @@ FEATURE_COLS_FOR_SCALING = [
 
 
 def _load_raw(csv_path: Path) -> pd.DataFrame:
+    """Ham CSV’yi data_preparation ile uyumlu temel temizlikten geçirir (data_preparation.py’ye benzer)."""
     df = pd.read_csv(csv_path)
     before = len(df)
     df = df.drop_duplicates()
@@ -62,6 +63,7 @@ def _split_masks_by_timestamp(
     train_ratio: float = 0.70,
     val_ratio: float = 0.15,
 ) -> pd.Series:
+    """Her satıra train/val/test etiketi; kesimler benzersiz zaman ekseninde (veri sızıntısı yok)."""
     unique_times = timestamps.drop_duplicates().sort_values(kind="mergesort")
     n_t = len(unique_times)
     if n_t < 3:
@@ -95,6 +97,7 @@ def _split_masks_by_timestamp(
 
 
 def _add_per_lot_history_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Lot bazında gecikme ve kayan ortalamalar; yalnızca geçmişe bakan shift/rolling kullanılır."""
     df = df.copy()
     df["occupancy_rate"] = df["Occupancy"] / df["Capacity"]
 
