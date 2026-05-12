@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -442,19 +443,12 @@ with tab_decision:
                 snap["occupancy_pct"] = snap["occ_rate"] * 100
                 snap["empty_capacity"] = snap["Capacity"] - snap["Occupancy"]
 
-                # Gerçek koordinat yoksa UI üzerinde karar mantığını göstermek için
-                # otopark sırasına göre temsili bir mesafe maliyeti oluşturuyoruz.
                 snap["demo_distance"] = np.arange(1, len(snap) + 1)
 
                 occ_cost = snap["occ_rate"].astype(float)
                 dist_cost = snap["demo_distance"] / max(float(snap["demo_distance"].max()), 1.0)
 
-                # Düşük skor daha iyi:
-                # %70 doluluk maliyeti + %30 temsili mesafe maliyeti
                 snap["decision_score"] = 0.70 * occ_cost + 0.30 * dist_cost
-
-                # Kullanıcıya daha anlaşılır göstermek için uygunluk skorunu tersliyoruz.
-                # Yüksek uygunluk daha iyi anlamına gelir.
                 snap["suitability_score"] = 1.0 - snap["decision_score"]
 
                 best_idx = snap["decision_score"].idxmin()
@@ -583,7 +577,7 @@ with tab_decision:
                     if st.session_state["anim_index"] >= len(selected_times):
                         st.session_state["anim_index"] = 0
 
-                    col_anim_1, col_anim_2 = st.columns(2)
+                    col_anim_1, col_anim_2, col_anim_3 = st.columns(3)
 
                     with col_anim_1:
                         if st.button("Animasyonu bir adım ilerlet"):
@@ -594,6 +588,13 @@ with tab_decision:
                     with col_anim_2:
                         if st.button("Animasyonu sıfırla"):
                             st.session_state["anim_index"] = 0
+
+                    with col_anim_3:
+                        auto_play = st.toggle(
+                            "Otomatik oynat",
+                            value=False,
+                            key="auto_play_occupancy",
+                        )
 
                     current_time = selected_times[st.session_state["anim_index"]]
                     frame_df = dfp[dfp["LastUpdated"] == current_time].copy()
@@ -645,6 +646,13 @@ with tab_decision:
                             f"Bu anda en yoğun otopark: {worst_now['SystemCodeNumber']} "
                             f"(%{float(worst_now['occ_rate']) * 100:.1f} dolu)"
                         )
+
+                        if auto_play:
+                            time.sleep(0.8)
+                            st.session_state["anim_index"] = (
+                                st.session_state["anim_index"] + 1
+                            ) % len(selected_times)
+                            st.rerun()
                 else:
                     st.info("Animasyon için yeterli zaman adımı bulunamadı.")
 
